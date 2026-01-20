@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: xcodebuild -project BattiHelper.xcodeproj -scheme BattiHelper -configuration Release -derivedDataPath "$RUNNER_TEMP/DerivedData" build CODE_SIGNING_ALLOWED=NO
+      - name: Package
+        run: |
+          set -euo pipefail
+          ARCH="$(uname -m)"
+          TAG="${GITHUB_REF_NAME}"
+          PRODUCT_DIR="${RUNNER_TEMP}/DerivedData/Build/Products/Release"
+          DIST="${RUNNER_TEMP}/dist"
+          mkdir -p "$DIST"
+          cp "$PRODUCT_DIR/BattiHelper" "$DIST/BattiHelper"
+          cp -R "$PRODUCT_DIR/BattiHelper.dSYM" "$DIST/" || true
+          tar -czf "BattiHelper-${TAG}-macos-${ARCH}.tar.gz" -C "$DIST" .
+      - name: Upload
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BattiHelper-*.tar.gz
+          generate_release_notes: true
